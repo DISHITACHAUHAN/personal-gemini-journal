@@ -1,0 +1,7 @@
+{
+  "name": "Secure Multi-User Journal",
+  "description": "Zero-trust, user-isolated multi-user journal application with authenticated Firestore security rules, strict input validation, and server-side Gemini AI analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

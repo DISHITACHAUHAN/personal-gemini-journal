@@ -1,0 +1,167 @@
+{
+  "entities": {
+    "JournalEntry": {
+      "title": "JournalEntry",
+      "description": "Private personal journal entry strictly scoped to an authenticated user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the journal entry"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase UID of the owner"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the journal entry",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "content": {
+          "type": "string",
+          "description": "Body text of the private journal entry",
+          "maxLength": 30000,
+          "minLength": 1
+        },
+        "messages": {
+          "type": "array",
+          "description": "Conversation messages and dialog exchanges stored within the journal entry",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": ["user", "assistant", "system"]
+              },
+              "content": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string"
+              }
+            },
+            "required": ["role", "content"]
+          }
+        },
+        "summary": {
+          "type": "string",
+          "description": "Generated concise summary of the journal thoughts and insights",
+          "maxLength": 5000
+        },
+        "keyThoughts": {
+          "type": "array",
+          "description": "Key thoughts identified by Gemini AI from conversation",
+          "items": {
+            "type": "string"
+          }
+        },
+        "takeaways": {
+          "type": "array",
+          "description": "Important takeaways and actionable insights identified by Gemini AI",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mood": {
+          "type": "string",
+          "description": "Recorded emotional state"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Categorical tags"
+        },
+        "reflection": {
+          "type": "object",
+          "description": "Server-side generated Gemini AI reflection"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["id", "userId", "title", "content", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Append-only security and operational audit record.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique log entry identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase UID of the user who performed the action"
+        },
+        "action": {
+          "type": "string",
+          "description": "Type of event recorded",
+          "enum": [
+            "AUTH_LOGIN",
+            "AUTH_LOGOUT",
+            "AUTH_REGISTER",
+            "ENTRY_CREATE",
+            "ENTRY_UPDATE",
+            "ENTRY_DELETE",
+            "AI_REFLECTION",
+            "DATA_EXPORT"
+          ]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of when the event occurred"
+        },
+        "details": {
+          "type": "string",
+          "description": "Summary details of the action"
+        },
+        "status": {
+          "type": "string",
+          "description": "Outcome status of the action",
+          "enum": ["SUCCESS", "DENIED", "FLAGGED"]
+        }
+      },
+      "required": ["id", "userId", "action", "timestamp", "status"]
+    },
+    "UserInsights": {
+      "title": "UserInsights",
+      "description": "Aggregated AI reflections, recurring themes, mood trends, and suggested actions derived strictly from the authenticated user's own journals.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "analyzedEntriesCount": { "type": "number" },
+        "recurringThemes": { "type": "array" },
+        "keyReflections": { "type": "array" },
+        "suggestedActions": { "type": "array" },
+        "moodTrend": { "type": "object" }
+      },
+      "required": ["id", "userId", "generatedAt", "recurringThemes", "keyReflections", "suggestedActions"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/journals/{journalId}": {
+      "schema": "JournalEntry",
+      "description": "Isolated collection of journal entries owned exclusively by userId."
+    },
+    "/users/{userId}/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Tamper-proof audit logs recorded for actions performed by userId."
+    },
+    "/users/{userId}/insights/{insightId}": {
+      "schema": "UserInsights",
+      "description": "AI Reflection & Insights snapshots strictly scoped to userId."
+    }
+  }
+}

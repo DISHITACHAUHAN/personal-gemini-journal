@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 6. Deny unauthorized access by default to any unmapped collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions enforcing defense-in-depth authorization
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User-scoped data isolation hierarchy: users/{userId}
+    match /users/{userId} {
+      // 1. Direct user document: strictly owner access
+      allow read, write: if isOwner(userId);
+
+      // User-scoped private journals: users/{userId}/journals/{journalId}
+      match /journals/{journalId} {
+        // 1 & 2. Data isolation: User A can NEVER read User B's journals
+        // 4. Authorization strictly uses Firebase Authentication identity
+        allow read: if isOwner(userId);
+        allow delete: if isOwner(userId);
+
+        // 3, 4, 7, 8. Creation:
+        // - Authenticated owner only
+        // - UID cannot be forged by client: strictly bound to request.auth.uid
+        // - Validates required fields, types, and length bounds
+        allow create: if isOwner(userId)
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.id is string
+          && request.resource.data.id.size() > 0
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 200
+          && request.resource.data.content is string
+          && request.resource.data.content.size() <= 30000
+          && request.resource.data.createdAt is string
+          && (!('summary' in request.resource.data) || (request.resource.data.summary is string && request.resource.data.summary.size() <= 5000))
+          && (!('keyThoughts' in request.resource.data) || request.resource.data.keyThoughts is list)
+          && (!('takeaways' in request.resource.data) || request.resource.data.takeaways is list)
+          && (!('messages' in request.resource.data) || request.resource.data.messages is list)
+          && (!('mood' in request.resource.data) || (request.resource.data.mood is string && request.resource.data.mood.size() <= 50))
+          && (!('tags' in request.resource.data) || request.resource.data.tags is list);
+
+        // 7 & 8. Update:
+        // - Must be authenticated owner
+        // - Cannot alter ownership: userId is immutable and matches request.auth.uid
+        // - id and createdAt cannot be modified (prevent backdating/tampering)
+        // - Validates all updated fields
+        allow update: if isOwner(userId)
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 200
+          && request.resource.data.content is string
+          && request.resource.data.content.size() <= 30000
+          && (!('summary' in request.resource.data) || (request.resource.data.summary is string && request.resource.data.summary.size() <= 5000))
+          && (!('keyThoughts' in request.resource.data) || request.resource.data.keyThoughts is list)
+          && (!('takeaways' in request.resource.data) || request.resource.data.takeaways is list)
+          && (!('messages' in request.resource.data) || request.resource.data.messages is list)
+          && (!('mood' in request.resource.data) || (request.resource.data.mood is string && request.resource.data.mood.size() <= 50))
+          && (!('tags' in request.resource.data) || request.resource.data.tags is list);
+      }
+
+      // Security and audit logs: append-only, tamper-proof for each user
+      match /auditLogs/{logId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.timestamp is string;
+        allow update, delete: if false;
+      }
+
+      // AI Reflection & Insights snapshots: strictly authenticated owner access
+      match /insights/{insightId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.userId == request.auth.uid;
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
